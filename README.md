@@ -86,4 +86,4 @@ tensorboard --logdir=./tensorboard
 | **Softmax_linear** |
 
 ## License
-[Apache License 2.0](https://github.com/exelban/tensorflow-cifar-10/blob/master/LICENSE)
+[Apache License 2.0](https://github.com/eugenelet/tensorflow-cifar-10-NiN/blob/master/LICENSE)
