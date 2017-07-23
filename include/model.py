@@ -6,41 +6,7 @@ def model():
     _IMAGE_SIZE = 32
     _IMAGE_CHANNELS = 3
     _NUM_CLASSES = 10
-    _RESHAPE_SIZE = 4*4*128
-
-    with tf.name_scope('data'):
-        x = tf.placeholder(tf.float32, shape=[None, _IMAGE_SIZE * _IMAGE_SIZE * _IMAGE_CHANNELS], name='Input')
-        y = tf.placeholder(tf.float32, shape=[None, _NUM_CLASSES], name='Output')
-        x_image = tf.reshape(x, [-1, _IMAGE_SIZE, _IMAGE_SIZE, _IMAGE_CHANNELS], name='images')
-
-    def _variable_with_weight_decay(name, shape, stddev, wd):
-        """Helper to create an initialized Variable with weight decay.
-        Note that the Variable is initialized with a truncated normal distribution.
-        A weight decay is added only if one is specified.
-        Args:
-          name: name of the variable
-          shape: list of ints
-          stddev: standard deviation of a truncated Gaussian
-          wd: add L2Loss weight decay multiplied by this float. If None, weight
-              decay is not added for this Variable.
-        Returns:
-          Variable Tensor
-        """
-        dtype = tf.float32
-        var = _variable_on_cpu(
-            name,
-            shape,
-            tf.truncated_normal_initializer(stddev=stddev, dtype=dtype))
-        if wd is not None:
-            weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
-            tf.add_to_collection('losses', weight_decay)
-        return var
-
-    def _variable_on_cpu(name, shape, initializer):
-        with tf.device('/cpu:0'):
-            dtype = tf.float32
-            var = tf.get_variable(name, shape, initializer=initializer, dtype=dtype)
-        return var
+    _RESHAPE_SIZE = 4 * 4 * 128
 
     def put_kernels_on_grid(kernel, pad=1):
 
@@ -59,7 +25,8 @@ def model():
         def factorization(n):
             for i in range(int(sqrt(float(n))), 0, -1):
                 if n % i == 0:
-                    if i == 1: print('Who would enter a prime number of filters')
+                    if i == 1:
+                        print('Who would enter a prime number of filters')
                     return (i, int(n / i))
 
         (grid_Y, grid_X) = factorization(kernel.get_shape()[3].value)
@@ -98,86 +65,118 @@ def model():
         # scaling to [0, 255] is not necessary for tensorboard
         return x7
 
-    with tf.variable_scope('conv1') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[5, 5, 3, 64], stddev=5e-2, wd=0.0)
-        conv = tf.nn.conv2d(x_image, kernel, [1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
-        pre_activation = tf.nn.bias_add(conv, biases)
-        conv1 = tf.nn.relu(pre_activation, name=scope.name)
-    with tf.variable_scope('Visualization'):
-        grid = put_kernels_on_grid(kernel)
-        tf.summary.image('conv1/filters', grid, max_outputs=1)
-    tf.summary.histogram('Convolution_layers/conv1', conv1)
-    tf.summary.scalar('Convolution_layers/conv1', tf.nn.zero_fraction(conv1))
+    with tf.name_scope('data'):
+        x = tf.placeholder(tf.float32, shape=[None, _IMAGE_SIZE * _IMAGE_SIZE * _IMAGE_CHANNELS], name='Input')
+        y = tf.placeholder(tf.float32, shape=[None, _NUM_CLASSES], name='Output')
+        x_image = tf.reshape(x, [-1, _IMAGE_SIZE, _IMAGE_SIZE, _IMAGE_CHANNELS], name='images')
 
-    norm1 = tf.nn.lrn(conv1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm1')
-    pool1 = tf.nn.max_pool(norm1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool1')
+    # define functions
+    def weight_variable(shape, stddev=0.05):
+        initial = tf.random_normal(shape, stddev=stddev, dtype=tf.float32)
+        return tf.Variable(initial)
 
-    with tf.variable_scope('conv2') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[5, 5, 64, 64], stddev=5e-2, wd=0.0)
-        conv = tf.nn.conv2d(pool1, kernel, [1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
-        pre_activation = tf.nn.bias_add(conv, biases)
-        conv2 = tf.nn.relu(pre_activation, name=scope.name)
-    tf.summary.histogram('Convolution_layers/conv2', conv2)
-    tf.summary.scalar('Convolution_layers/conv2', tf.nn.zero_fraction(conv2))
+    def bias_variable(shape):
+        initial = tf.constant(0, shape=shape, dtype=tf.float32)
+        return tf.Variable(initial)
 
-    norm2 = tf.nn.lrn(conv2, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm2')
-    pool2 = tf.nn.max_pool(norm2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool2')
+    def conv2d(x, W):
+        return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
 
-    with tf.variable_scope('conv3') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 64, 128], stddev=5e-2, wd=0.0)
-        conv = tf.nn.conv2d(pool2, kernel, [1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [128], tf.constant_initializer(0.0))
-        pre_activation = tf.nn.bias_add(conv, biases)
-        conv3 = tf.nn.relu(pre_activation, name=scope.name)
-    tf.summary.histogram('Convolution_layers/conv3', conv3)
-    tf.summary.scalar('Convolution_layers/conv3', tf.nn.zero_fraction(conv3))
+    def max_pool_3x3(x):
+        return tf.nn.max_pool(x, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')
 
-    with tf.variable_scope('conv4') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 128, 128], stddev=5e-2, wd=0.0)
-        conv = tf.nn.conv2d(conv3, kernel, [1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [128], tf.constant_initializer(0.0))
-        pre_activation = tf.nn.bias_add(conv, biases)
-        conv4 = tf.nn.relu(pre_activation, name=scope.name)
-    tf.summary.histogram('Convolution_layers/conv4', conv4)
-    tf.summary.scalar('Convolution_layers/conv4', tf.nn.zero_fraction(conv4))
+    x = tf.placeholder(tf.float32, [None, _IMAGE_SIZE * _IMAGE_SIZE * _IMAGE_CHANNELS])
+    y = tf.placeholder(tf.float32, [None, _NUM_CLASSES])
+    keep_prob = tf.placeholder(tf.float32)
+    x_image = tf.reshape(x, [-1, _IMAGE_SIZE, _IMAGE_SIZE, _IMAGE_CHANNELS])
 
-    with tf.variable_scope('conv5') as scope:
-        kernel = _variable_with_weight_decay('weights', shape=[3, 3, 128, 128], stddev=5e-2, wd=0.0)
-        conv = tf.nn.conv2d(conv4, kernel, [1, 1, 1, 1], padding='SAME')
-        biases = _variable_on_cpu('biases', [128], tf.constant_initializer(0.0))
-        pre_activation = tf.nn.bias_add(conv, biases)
-        conv5 = tf.nn.relu(pre_activation, name=scope.name)
-    tf.summary.histogram('Convolution_layers/conv5', conv5)
-    tf.summary.scalar('Convolution_layers/conv5', tf.nn.zero_fraction(conv5))
+    # conv1 layer
+    with tf.name_scope('conv1'):
+        W_conv1 = weight_variable([5, 5, 3, 192], stddev=0.01)
+        b_conv1 = tf.Variable(tf.random_normal([192], stddev=0.01, dtype=tf.float32))
+        output = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
+        tf.summary.histogram('conv_filter', output)
+        tf.summary.scalar('conv_filter', tf.nn.zero_fraction(output))
+        # MLP-1-1
+        with tf.name_scope('mlp_1_1'):
+            W_MLP11 = weight_variable([1, 1, 192, 160])
+            b_MLP11 = bias_variable([160])
+            output = tf.nn.relu(conv2d(output, W_MLP11) + b_MLP11)
+            tf.summary.histogram('mlp', output)
+            tf.summary.scalar('mlp', tf.nn.zero_fraction(output))
+        # MLP-1-2
+        with tf.name_scope('mlp_1_2'):
+            W_MLP12 = weight_variable([1, 1, 160, 96])
+            b_MLP12 = bias_variable([96])
+            output = tf.nn.relu(conv2d(output, W_MLP12) + b_MLP12)
+            tf.summary.histogram('mlp', output)
+            tf.summary.scalar('mlp', tf.nn.zero_fraction(output))
 
-    norm3 = tf.nn.lrn(conv5, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75, name='norm3')
-    pool3 = tf.nn.max_pool(norm3, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool3')
+        with tf.variable_scope('Visualization'):
+            grid = put_kernels_on_grid(W_conv1)
+            tf.summary.image('conv1/filters', grid, max_outputs=1)
 
-    with tf.variable_scope('fully_connected1') as scope:
-        reshape = tf.reshape(pool3, [-1, _RESHAPE_SIZE])
-        dim = reshape.get_shape()[1].value
-        weights = _variable_with_weight_decay('weights', shape=[dim, 384], stddev=0.04, wd=0.004)
-        biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
-        local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-    tf.summary.histogram('Fully connected layers/fc1', local3)
-    tf.summary.scalar('Fully connected layers/fc1', tf.nn.zero_fraction(local3))
+        # Max pooling
+        output = max_pool_3x3(output)
+        # dropout
+        output = tf.nn.dropout(output, keep_prob)
 
-    with tf.variable_scope('fully_connected2') as scope:
-        weights = _variable_with_weight_decay('weights', shape=[384, 192], stddev=0.04, wd=0.004)
-        biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
-        local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
-    tf.summary.histogram('Fully connected layers/fc2', local4)
-    tf.summary.scalar('Fully connected layers/fc2', tf.nn.zero_fraction(local4))
+    # conv2 layer
+    with tf.name_scope('conv2'):
+        W_conv2 = weight_variable([5, 5, 96, 192])
+        b_conv2 = tf.Variable(tf.random_normal([192], stddev=0.01, dtype=tf.float32))
+        output = tf.nn.relu(conv2d(output, W_conv2) + b_conv2)
+        tf.summary.histogram('conv_filter', output)
+        tf.summary.scalar('conv_filter', tf.nn.zero_fraction(output))
+        # MLP-2-1
+        with tf.name_scope('mlp_2_1'):
+            W_MLP21 = weight_variable([1, 1, 192, 192])
+            b_MLP21 = bias_variable([192])
+            output = tf.nn.relu(conv2d(output, W_MLP21) + b_MLP21)
+            tf.summary.histogram('mlp', output)
+            tf.summary.scalar('mlp', tf.nn.zero_fraction(output))
+        # MLP-2-2
+        with tf.name_scope('mlp_2_2'):
+            W_MLP22 = weight_variable([1, 1, 192, 192])
+            b_MLP22 = bias_variable([192])
+            output = tf.nn.relu(conv2d(output, W_MLP22) + b_MLP22)
+            tf.summary.histogram('mlp', output)
+            tf.summary.scalar('mlp', tf.nn.zero_fraction(output))
+        # Max pooling
+        output = max_pool_3x3(output)
+        # dropout
+        output = tf.nn.dropout(output, keep_prob)
 
-    with tf.variable_scope('output') as scope:
-        weights = _variable_with_weight_decay('weights', [192, _NUM_CLASSES], stddev=1 / 192.0, wd=0.0)
-        biases = _variable_on_cpu('biases', [_NUM_CLASSES], tf.constant_initializer(0.0))
-        softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
-    tf.summary.histogram('Fully connected layers/output', softmax_linear)
+    # conv3 layer
+    with tf.name_scope('conv3'):
+        W_conv3 = weight_variable([3, 3, 192, 192])
+        b_conv3 = tf.Variable(tf.random_normal([192], stddev=0.01, dtype=tf.float32))
+        output = tf.nn.relu(conv2d(output, W_conv3) + b_conv3)
+        tf.summary.histogram('conv_filter', output)
+        tf.summary.scalar('conv_filter', tf.nn.zero_fraction(output))
+        # MLP-2-1
+        with tf.name_scope('mlp_3_1'):
+            W_MLP31 = weight_variable([1, 1, 192, 192])
+            b_MLP31 = bias_variable([192])
+            output = tf.nn.relu(conv2d(output, W_MLP31) + b_MLP31)
+            tf.summary.histogram('mlp', output)
+            tf.summary.scalar('mlp', tf.nn.zero_fraction(output))
+        # MLP-2-2
+        with tf.name_scope('mlp_3_2'):
+            W_MLP32 = weight_variable([1, 1, 192, 10])
+            b_MLP32 = bias_variable([10])
+            output = tf.nn.relu(conv2d(output, W_MLP32) + b_MLP32)
+            tf.summary.histogram('mlp', output)
+            tf.summary.scalar('mlp', tf.nn.zero_fraction(output))
+        # global average
+        output = tf.nn.avg_pool(output, ksize=[1, 8, 8, 1], strides=[1, 1, 1, 1], padding='VALID')
+        # [n_samples, 1, 1, 10] ->> [n_samples, 1*1*10]
+    with tf.name_scope('output'):
+        output = tf.reshape(output, [-1, 1 * 1 * 10])
+        tf.summary.histogram('avg_pool', output)
+
 
     global_step = tf.Variable(initial_value=0, name='global_step', trainable=False)
-    y_pred_cls = tf.argmax(softmax_linear, dimension=1)
+    y_pred_cls = tf.argmax(output, dimension=1)
 
-    return x, y, softmax_linear, global_step, y_pred_cls
+    return x, y, output, global_step, y_pred_cls, keep_prob

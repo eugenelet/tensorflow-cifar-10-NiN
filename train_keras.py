@@ -5,7 +5,7 @@ from time import time
 
 from include.data import get_data_set
 # from include.model import model
-from include.model import model
+from include.model_TA import model
 
 from utils import progress_bar
 
@@ -17,30 +17,26 @@ _NUM_CHANNELS = 3
 _BATCH_SIZE = 128
 _CLASS_SIZE = 10
 _ITERATION = 20000
-_EPOCH = 161
+_EPOCH = 300
 # _SAVE_PATH = "./tensorboard/cifar-10/"
-_SAVE_PATH = "./tensorboard/aug-decay-RMS2/"
+_SAVE_PATH = "./tensorboard1/cifar-10/"
 
-train_x, train_y, train_l, mu, std = get_data_set(cifar=10, whitten=False)
-test_x, test_y, test_l, mu, std = get_data_set(name="test", mu=mu, std=std, cifar=10, whitten=False)
+train_x, train_y, train_l = get_data_set(cifar=10)
+test_x, test_y, test_l = get_data_set("test", cifar=10)
 
-print (train_x)
-print (test_x)
 loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=output, labels=y))
 steps_per_epoch = len(train_x) / _BATCH_SIZE
-boundaries = [steps_per_epoch * _epoch for _epoch in [81, 122]]
+boundaries = [steps_per_epoch * _epoch for _epoch in [10, 40]]
 values = [0.1, 0.01, 0.001]
 learning_rate = tf.train.piecewise_constant(global_step, boundaries, values)
 l2 = tf.add_n([tf.nn.l2_loss(var) for var in tf.trainable_variables()])
 weight_decay = 0.0001
-optimizer = tf.train.RMSPropOptimizer(learning_rate=1e-4).minimize(loss + l2 * weight_decay, global_step=global_step)
-# optimizer = tf.train.RMSPropOptimizer(learning_rate=1e-4).minimize(loss, global_step=global_step)
-# optimizer = tf.train.MomentumOptimizer(learning_rate, 0.9, name='Momentum', use_nesterov=True).minimize(loss + l2 * weight_decay, global_step=global_step)
+# optimizer = tf.train.RMSPropOptimizer(learning_rate=1e-4).minimize(loss + l2 * weight_decay, global_step=global_step)
+optimizer = tf.train.MomentumOptimizer(learning_rate, 0.9, name='Momentum', use_nesterov=True).minimize(loss + l2 * weight_decay, global_step=global_step)
 
 correct_prediction = tf.equal(y_pred_cls, tf.argmax(y, dimension=1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 tf.summary.scalar("Accuracy/train", accuracy)
-tf.summary.scalar("Loss", loss)
 
 
 merged = tf.summary.merge_all()

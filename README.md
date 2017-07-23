@@ -1,11 +1,10 @@
-# tensorflow-cifar-10
-Cifar-10 convolutional network implementation example using TensorFlow library.
-![](https://s3.eu-central-1.amazonaws.com/serhiy/Github_repo/Zrzut+ekranu+2017-03-19+o+19.10.46.png)
+# tensorflow-cifar-10-NiN
+Cifar-10 Network in Network implementation example using TensorFlow library.
 
 ## Requirement
 **Library** | **Version**
 --- | ---
-**Python** | **^3.5**
+**Python** | **^2.7**
 **Tensorflow** | **^1.0.1** 
 **Numpy** | **^1.12.0** 
 **Pickle** |  *  
@@ -21,34 +20,17 @@ cd tensorflow-cifar-10
 ### Train cnn:
 Batch size: 128
 
-After every 1000 iteration making prediction on testing batch. 
+Prediction made on per epoch basis. 
 
-20000 iteration take about 2h on GTX 960.
+161 epochs takes about 3h on GTX 1080.
 
 ```sh
-python3 train.py
-```
-Example output:
-```sh
-Trying to restore last checkpoint ...
-Restored checkpoint from: ./tensorboard/cifar-10/-20000
-Global Step:  20010, accuracy:  98.4%, loss = 0.04 (1381.6 examples/sec, 0.09 sec/batch)
-Global Step:  20020, accuracy:  99.2%, loss = 0.02 (1370.4 examples/sec, 0.09 sec/batch)
-Global Step:  20030, accuracy: 100.0%, loss = 0.01 (1375.0 examples/sec, 0.09 sec/batch)
-Global Step:  20040, accuracy:  98.4%, loss = 0.04 (1401.3 examples/sec, 0.09 sec/batch)
-Global Step:  20050, accuracy: 100.0%, loss = 0.01 (1358.1 examples/sec, 0.09 sec/batch)
-Global Step:  20060, accuracy: 100.0%, loss = 0.02 (1289.0 examples/sec, 0.10 sec/batch)
-Global Step:  20070, accuracy: 100.0%, loss = 0.01 (1305.6 examples/sec, 0.10 sec/batch)
-Global Step:  20080, accuracy:  98.4%, loss = 0.05 (1421.1 examples/sec, 0.09 sec/batch)
-Global Step:  20090, accuracy:  99.2%, loss = 0.01 (1411.4 examples/sec, 0.09 sec/batch)
-Global Step:  20100, accuracy: 100.0%, loss = 0.00 (1369.6 examples/sec, 0.09 sec/batch)
-Accuracy on Test-Set: 76.23% (7623 / 10000)
-Saved checkpoint.
+python train.py
 ```
 
 #### Make prediction:
 ```sh
-python3 predict.py
+python predict.py
 ```
 
 Example output:
@@ -80,28 +62,28 @@ tensorboard --logdir=./tensorboard
 | :---: |
 | Conv_2d |
 | ReLu |
+| MLP |
+| ReLu |
+| MLP |
+| ReLu |
 | MaxPool |
-| LRN |
 | **Convolution layer 2** |
 | Conv_2d |
 | ReLu |
-| LRN |
+| MLP |
+| ReLu |
+| MLP |
+| ReLu |
 | MaxPool |
 | **Convolution layer 3**  |
 | Conv_2d |
 | ReLu |
-| **Convolution layer 4** |
-| Conv_2d |
+| MLP |
 | ReLu |
-| **Convolution layer 5** |
-| Conv_2d |
+| MLP |
 | ReLu |
-| LRN |
-| MaxPool |
-| **Fully connected 1** |
-| **Fully connected 2** |
+| AvgPool |
 | **Softmax_linear** |
-![](https://s3.eu-central-1.amazonaws.com/serhiy/Github_repo/Zrzut+ekranu+2017-03-19+o+19.11.18.png)
 
 ## License
 [Apache License 2.0](https://github.com/exelban/tensorflow-cifar-10/blob/master/LICENSE)
