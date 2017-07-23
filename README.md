@@ -87,3 +87,6 @@ tensorboard --logdir=./tensorboard
 
 ## License
 [Apache License 2.0](https://github.com/eugenelet/tensorflow-cifar-10-NiN/blob/master/LICENSE)
+
+## Implementation Details
+[My Blog](https://embedai.wordpress.com/2017/07/23/network-in-network-implementation-using-tensorflow/)
