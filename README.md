@@ -12,9 +12,9 @@ Cifar-10 Network in Network implementation example using TensorFlow library.
 ## Usage
 ### Download code:
 ```sh
-git clone https://github.com/exelban/tensorflow-cifar-10
+git clone https://github.com/eugenelet/tensorflow-cifar-10-NiN
 
-cd tensorflow-cifar-10
+cd tensorflow-cifar-10-NiN
 ```
 
 ### Train cnn:
